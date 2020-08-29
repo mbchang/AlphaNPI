@@ -94,7 +94,7 @@ class HanoiEnv(Environment):
         self.n = self.init_n
 
         self.roles = ['source', 'auxiliary', 'target']
-        random.shuffle(self.roles)
+        # random.shuffle(self.roles)
         self.init_roles_stack = [self.roles.copy()]
 
         src_pos = self.roles.index('source')
