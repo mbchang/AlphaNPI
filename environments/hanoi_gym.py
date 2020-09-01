@@ -6,15 +6,13 @@ from environments.hanoi_env import HanoiEnv
 
 HanoiEnvState = namedtuple('HanoiEnvState', 
     ('pillars', 'roles', 'n', 'init_roles'))
-HanoiGymDisk = namedtuple('HanoiGymDisk',
-    ('pillars', 'roles', 'init_roles'))
+
 
 """
 Notes
     need to make sure that self.max_steps < buffer size
         if buffer_size, then n <= 8
 """
-
 
 class HanoiGym(HanoiEnv):
     def __init__(self, n):
@@ -33,7 +31,7 @@ class HanoiGym(HanoiEnv):
         pass
 
     def render(self, mode):
-        state = self.get_state()
+        # state = self.get_state()
         # create an array
 
         pass
