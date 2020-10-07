@@ -26,14 +26,21 @@ class MyHanoiGym():
         self.pillar_rmap = {v: k for k,v in self.pillar_map.items()}
 
         self.n = n
-        self.actions = {
-            0: (0, 1),
-            1: (0, 2),
-            2: (1, 2),
-            3: (1, 0),
-            4: (2, 0),
-            5: (2, 1),
+        self.move_actions = {
+            0: (0, 1),  # move disk from src to aux
+            1: (0, 2),  # move disk from src to tgt
+            2: (1, 2),  # move disk from aux to tgt
+            3: (1, 0),  # move disk from aux to src
+            4: (2, 0),  # move disk from tgt to src
+            5: (2, 1),  # move disk from tgt to aux
         }
+        self.swap_actions = {
+            6: 'SWAP_S_A',  # swap src and aux
+            7: 'SWAP_A_T',  # swap aux and tgt
+            8: 'SWAP_T_S',  # swap tgt and src
+        }
+        self.actions = {**self.move_actions, **self.swap_actions}
+
         self.pillars = ([], [], [])
         self.roles = []
         self.init_roles = []
@@ -46,11 +53,7 @@ class MyHanoiGym():
 
         # create a mapping between rectangles and disk ids.
 
-
-
-
         # create an array
-
         pass
 
     def text_render(self):
@@ -125,19 +128,40 @@ class MyHanoiGym():
         return reparameterized_state
 
     def step(self, action):
-        start_pillar_idx = self.actions[action][0]
-        end_pillar_idx = self.actions[action][1]
-        old_state = self.get_state()
-        if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
-            disk = self._pop(start_pillar_idx)
-            self._push(end_pillar_idx, disk)
-            state = self.get_state()
-            done = self.get_done()
-            reward = self.get_reward()
+        if action in self.move_actions:
+            start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
+            end_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][1]])
+            old_state = self.get_state()
+            if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
+                disk = self._pop(start_pillar_idx)
+                self._push(end_pillar_idx, disk)
+            #     state = self.get_state()
+            #     done = self.get_done()
+            #     reward = self.get_reward()
+            # else:
+            #     state = old_state
+            #     done = self.get_done()
+            #     reward = 0
+        elif action in self.swap_actions:
+            if self.n > 1:
+                if action == 6:
+                    self._swap_s_a()
+                elif action == 7:
+                    self._swap_a_t()
+                elif action == 8:
+                    self._swap_s_t()
+                # state = self.get_state()
+                # done = self.get_done()
+                # reward = self.get_reward()
+            else:
+                assert False
         else:
-            state = old_state
-            done = self.get_done()
-            reward = -0.01
+            assert False
+
+        state = self.get_state()
+        done = self.get_done()
+        reward = self.get_reward()
+
         reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
         info = dict()
         return reparameterized_state, reward, done, info
@@ -201,104 +225,33 @@ class MyHanoiGym():
                 is_possible &= end_pillar[-1] > start_pillar[-1]
             return is_possible
 
+    def _swap_s_a(self):
+        assert self._swap_s_a_precondition(), 'precondition not verified'
+        src_pos, aux_pos = self.roles.index('source'), self.roles.index('auxiliary')
+        self.roles[src_pos], self.roles[aux_pos] = self.roles[aux_pos], self.roles[src_pos]
+
+    def _swap_s_a_precondition(self):
+        return self.n > 1
+
+    def _swap_s_t(self):
+        assert self._swap_s_t_precondition(), 'precondition not verified'
+        src_pos, targ_pos = self.roles.index('source'), self.roles.index('target')
+        self.roles[src_pos], self.roles[targ_pos] = self.roles[targ_pos], self.roles[src_pos]
+
+    def _swap_s_t_precondition(self):
+        return self.n > 1
+
+    def _swap_a_t(self):
+        assert self._swap_a_t_precondition(), 'precondition not verified'
+        aux_pos, targ_pos = self.roles.index('auxiliary'), self.roles.index('target')
+        self.roles[aux_pos], self.roles[targ_pos] = self.roles[targ_pos], self.roles[aux_pos]
+
+    def _swap_a_t_precondition(self):
+        return self.n > 1
+
     def _is_solved(self):
         targ_pos = self.init_roles.index('target')
-        return self.pillars[targ_pos] == range(self.n)
-
-
-
-class HanoiGym(HanoiEnv):
-    def __init__(self, n):
-        HanoiEnv.__init__(self, n=n)
-        self.actions = {
-            0: 'SWAP_S_A',
-            1: 'SWAP_A_T',
-            2: 'MOVE_DISK',
-            3: 'STOP',
-        }
-        self.state_dim = 6
-        self.action_dim = len(self.actions)
-        self.max_steps = 10*2**n-1  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
-
-    def seed(self, seed):
-        pass
-
-    def render(self, mode):
-        # state = self.get_state()
-        # create an array
-
-        pass
-
-    def reset(self):
-        # print('self.tasks_dict.keys()', self.tasks_dict.keys())
-        if len(self.tasks_dict) > 0:
-            self.end_task()  # every time we reset, we force it to reset everything.
-        try:
-            observation, reparameterized_state = self.start_task(0)
-        except AssertionError as error:
-            assert error.args[0] in ['precondition not verified']
-            self.end_task()
-            observation, reparameterized_state = self.start_task(0)
-        return reparameterized_state
-
-    def step(self, action):
-        """
-            need to treat stop
-        """
-        old_observation, old_reparameterized_state = self.get_observation()
-        old_reward = self.get_reward()
-        old_done =  old_observation[-1]
-
-        program = self.actions[action]
-        if program == 'STOP':
-            next_observation, next_reparameterized_state = self.get_observation()
-            reward = self.get_reward()
-            done = False#True
-        else:
-            try:
-                next_observation, next_reparameterized_state = self.act(program)
-            except AssertionError as error:
-                assert error.args[0] in ['precondition not verified']
-                next_observation, next_reparameterized_state = old_observation, old_reparameterized_state
-                reward = old_reward
-                done = old_done
-            else:
-                reward = self.get_reward()
-                done = next_observation[-1]
-        info = dict()
-        return next_reparameterized_state, reward, done, info
-
-    def get_state(self):
-        state = HanoiEnv.get_state(self)
-        state = HanoiEnvState(
-            pillars=state[0],
-            roles=state[1],
-            n=state[2],
-            init_roles=state[3])
-        return state
-
-    def reparameterize_state(self, state):
-        assert isinstance(state, HanoiEnvState)
-        assert state.init_roles == ['source', 'auxiliary', 'target']
-
-        reparameterized_state = []  # must be ordered!
-        for disk in range(state.n):
-            disk_position_relative = [disk in pillar for pillar in state.pillars]
-            disk_position_canonical = [disk_position_relative[state.roles.index(role)] for role in state.init_roles]
-            roles = [state.init_roles.index(role) for role in state.roles]
-            disk_representation = np.concatenate((disk_position_canonical, roles))
-            reparameterized_state.append(disk_representation)
-            # print('disk {} relative'.format(disk), disk_position_relative)
-            # print('disk {} canonical'.format(disk), disk_position_canonical)
-            # print('disk {} roles'.format(disk), roles)
-            # print('disk {} disk_representation'.format(disk), disk_representation)
-        return reparameterized_state
-
-    def get_observation(self):
-        observation = HanoiEnv.get_observation(self)
-        state = self.get_state()
-        reparameterized_state = np.stack(self.reparameterize_state(state), axis=0)
-        return observation, reparameterized_state
+        return self.pillars[targ_pos] == range(self.n)  # also should make sure that the roles are correct
 
 """
 Testing
@@ -306,63 +259,18 @@ Testing
 def visualize_reset(obs):
     print('Initial Observation: {}'.format(obs))
 
-# def visualize_transition(obs, action, next_obs, reward, done, info):
-#     actions = {
-#             0: 'SWAP_S_A',
-#             1: 'SWAP_A_T',
-#             2: 'MOVE_DISK',
-#             3: 'STOP',
-#         }
-#     print('Obs: {} {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
-#         obs, actions[action], action, next_obs, reward, done, info))
-
-
-# def execute_transition(obs, action, env, obs_action_pairs):
-#     next_obs, reward, done, info = env.step(action)
-#     visualize_transition(obs, action, next_obs, reward, done, info)
-#     print('State: {}'.format(env.get_state()))
-#     hashable_obs = tuple([tuple(disk) for disk in obs])
-#     if hashable_obs not in obs_action_pairs:
-#         obs_action_pairs[hashable_obs] = set()
-#     obs_action_pairs[hashable_obs].add(env.actions[action])
-#     obs = next_obs
-#     return obs, obs_action_pairs
-
-# def execute_n_policy(obs, n, env, obs_action_pairs):
-#     if n == 1:
-#         policy = [1]
-#     else:
-#         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
-#         policy = [1, n_minus_1_policy, 1, 2, 0, n_minus_1_policy, 0]
-#     for action in policy:
-#         if isinstance(action, int):
-#             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
-#         else:
-#             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
-#     return obs, obs_action_pairs
-
-# def test_hanoi_gym_n(max_n):
-#     for n in range(1, max_n+1):
-
-#         n = 1
-
-#         print('n = {}'.format(n))
-#         obs_action_pairs = dict()
-
-#         env = MyHanoiGym(n=n)
-#         obs = env.reset()
-#         print('State: {}\n{}'.format(env.get_state(), env.text_render()))
-#         obs, obs_action_pairs = execute_n_policy(obs, n, env, obs_action_pairs)
-#         pprint.pprint(obs_action_pairs)
 
 def visualize_transition(obs, action, next_obs, reward, done, info):
     actions = {
-            0: (0, 1),
-            1: (0, 2),
-            2: (1, 2),
-            3: (1, 0),
-            4: (2, 0),
-            5: (2, 1),
+            0: 'MOVE_S_A',  # move disk from src to aux
+            1: 'MOVE_S_T',  # move disk from src to tgt
+            2: 'MOVE_A_T',  # move disk from aux to tgt
+            3: 'MOVE_A_S',  # move disk from aux to src
+            4: 'MOVE_T_S',  # move disk from tgt to src
+            5: 'MOVE_T_A',  # move disk from tgt to aux
+            6: 'SWAP_S_A',  # swap src and aux
+            7: 'SWAP_A_T',  # swap aux and tgt
+            8: 'SWAP_T_S',  # swap tgt and src
         }
     print('Obs: {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
         obs, actions[action], next_obs, reward, done, info))
@@ -378,11 +286,19 @@ def execute_transition(obs, action, env, obs_action_pairs):
     obs = next_obs
     return obs, obs_action_pairs
 
-# def execute_1_policy(obs, n, env, obs_action_pairs):
+# def execute_n_policy(obs, n, env, obs_action_pairs):
 #     if n == 1:
 #         policy = [1]
-#     else:
+#     elif n == 2:
+#         policy = [0, 1, 2]
+#     elif n == 3:
+#         policy = [1, 0, 5, 1, 3, 2, 1]
+#     elif n == 4:
+#         policy = [0, 1, 2, 0, 4, 5, 0, 1, 2, 3, 4, 2, 0, 1, 2]
+#     else:   
 #         assert False
+#         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
+#         policy = [1, n_minus_1_policy, 1, 2, 0, n_minus_1_policy, 0]
 #     for action in policy:
 #         if isinstance(action, int):
 #             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
@@ -390,25 +306,25 @@ def execute_transition(obs, action, env, obs_action_pairs):
 #             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
 #     return obs, obs_action_pairs
 
+
 def execute_n_policy(obs, n, env, obs_action_pairs):
     if n == 1:
         policy = [1]
     elif n == 2:
         policy = [0, 1, 2]
-    elif n == 3:
-        policy = [1, 0, 5, 1, 3, 2, 1]
-    elif n == 4:
-        policy = [0, 1, 2, 0, 4, 5, 0, 1, 2, 3, 4, 2, 0, 1, 2]
-    else:   
-        assert False
+    else:
         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
-        policy = [1, n_minus_1_policy, 1, 2, 0, n_minus_1_policy, 0]
+        if n % 2 == 0:
+            policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6]  # technically you are doubling up on the first 7 and the last 6 here
+        else:
+            policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6]
     for action in policy:
         if isinstance(action, int):
             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
         else:
             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
     return obs, obs_action_pairs
+
 
 def test_hanoi_gym_n(max_n):
     for n in range(1, max_n+1):
