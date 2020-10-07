@@ -131,12 +131,16 @@ class MyHanoiGym():
         if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
             disk = self._pop(start_pillar_idx)
             self._push(end_pillar_idx, disk)
+            state = self.get_state()
+            done = self.get_done()
+            reward = self.get_reward()
         else:
             state = old_state
+            done = self.get_done()
+            reward = -0.01
         reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
-        done = self._is_solved()
         info = dict()
-        return reparameterized_state, done, info
+        return reparameterized_state, reward, done, info
 
     def get_state(self):
         state = HanoiEnvState(
@@ -146,6 +150,14 @@ class MyHanoiGym():
             init_roles=copy.deepcopy(self.init_roles)
             )
         return state
+
+    def get_reward(self):
+        reward = self._is_solved()
+        return reward
+
+    def get_done(self):
+        done = self._is_solved()
+        return done
 
     def _reparameterize_state(self, state):
         assert isinstance(state, HanoiEnvState)
@@ -294,21 +306,71 @@ Testing
 def visualize_reset(obs):
     print('Initial Observation: {}'.format(obs))
 
+# def visualize_transition(obs, action, next_obs, reward, done, info):
+#     actions = {
+#             0: 'SWAP_S_A',
+#             1: 'SWAP_A_T',
+#             2: 'MOVE_DISK',
+#             3: 'STOP',
+#         }
+#     print('Obs: {} {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
+#         obs, actions[action], action, next_obs, reward, done, info))
+
+
+# def execute_transition(obs, action, env, obs_action_pairs):
+#     next_obs, reward, done, info = env.step(action)
+#     visualize_transition(obs, action, next_obs, reward, done, info)
+#     print('State: {}'.format(env.get_state()))
+#     hashable_obs = tuple([tuple(disk) for disk in obs])
+#     if hashable_obs not in obs_action_pairs:
+#         obs_action_pairs[hashable_obs] = set()
+#     obs_action_pairs[hashable_obs].add(env.actions[action])
+#     obs = next_obs
+#     return obs, obs_action_pairs
+
+# def execute_n_policy(obs, n, env, obs_action_pairs):
+#     if n == 1:
+#         policy = [1]
+#     else:
+#         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
+#         policy = [1, n_minus_1_policy, 1, 2, 0, n_minus_1_policy, 0]
+#     for action in policy:
+#         if isinstance(action, int):
+#             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
+#         else:
+#             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
+#     return obs, obs_action_pairs
+
+# def test_hanoi_gym_n(max_n):
+#     for n in range(1, max_n+1):
+
+#         n = 1
+
+#         print('n = {}'.format(n))
+#         obs_action_pairs = dict()
+
+#         env = MyHanoiGym(n=n)
+#         obs = env.reset()
+#         print('State: {}\n{}'.format(env.get_state(), env.text_render()))
+#         obs, obs_action_pairs = execute_n_policy(obs, n, env, obs_action_pairs)
+#         pprint.pprint(obs_action_pairs)
+
 def visualize_transition(obs, action, next_obs, reward, done, info):
     actions = {
-            0: 'SWAP_S_A',
-            1: 'SWAP_A_T',
-            2: 'MOVE_DISK',
-            3: 'STOP',
+            0: (0, 1),
+            1: (0, 2),
+            2: (1, 2),
+            3: (1, 0),
+            4: (2, 0),
+            5: (2, 1),
         }
-    print('Obs: {} {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
-        obs, actions[action], action, next_obs, reward, done, info))
-
+    print('Obs: {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
+        obs, actions[action], next_obs, reward, done, info))
 
 def execute_transition(obs, action, env, obs_action_pairs):
     next_obs, reward, done, info = env.step(action)
     visualize_transition(obs, action, next_obs, reward, done, info)
-    print('State: {}'.format(env.get_state()))
+    print('State: {}\n{}'.format(env.get_state(), env.text_render()))
     hashable_obs = tuple([tuple(disk) for disk in obs])
     if hashable_obs not in obs_action_pairs:
         obs_action_pairs[hashable_obs] = set()
@@ -316,10 +378,29 @@ def execute_transition(obs, action, env, obs_action_pairs):
     obs = next_obs
     return obs, obs_action_pairs
 
+# def execute_1_policy(obs, n, env, obs_action_pairs):
+#     if n == 1:
+#         policy = [1]
+#     else:
+#         assert False
+#     for action in policy:
+#         if isinstance(action, int):
+#             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
+#         else:
+#             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
+#     return obs, obs_action_pairs
+
 def execute_n_policy(obs, n, env, obs_action_pairs):
     if n == 1:
-        policy = [2]
-    else:
+        policy = [1]
+    elif n == 2:
+        policy = [0, 1, 2]
+    elif n == 3:
+        policy = [1, 0, 5, 1, 3, 2, 1]
+    elif n == 4:
+        policy = [0, 1, 2, 0, 4, 5, 0, 1, 2, 3, 4, 2, 0, 1, 2]
+    else:   
+        assert False
         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
         policy = [1, n_minus_1_policy, 1, 2, 0, n_minus_1_policy, 0]
     for action in policy:
@@ -331,23 +412,21 @@ def execute_n_policy(obs, n, env, obs_action_pairs):
 
 def test_hanoi_gym_n(max_n):
     for n in range(1, max_n+1):
-
-        n = 10
-
-        print('n = {}'.format(n))
+        print('{}\nn = {}\n{}'.format('*'*40, n, '*'*40))
         obs_action_pairs = dict()
-
         env = MyHanoiGym(n=n)
         obs = env.reset()
+        print('Obs: {}'.format(obs))
         print('State: {}\n{}'.format(env.get_state(), env.text_render()))
-        assert False
         obs, obs_action_pairs = execute_n_policy(obs, n, env, obs_action_pairs)
+        print('obs_action_pairs')
         pprint.pprint(obs_action_pairs)
+
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n', type=int, default=2, help='number of disks')
+    parser.add_argument('--n', type=int, default=1, help='number of disks')
     args = parser.parse_args()
     test_hanoi_gym_n(max_n=args.n)
