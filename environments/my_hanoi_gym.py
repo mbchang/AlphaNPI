@@ -37,7 +37,7 @@ class MyHanoiGym():
         self.swap_actions = {
             6: 'SWAP_S_A',  # swap src and aux
             7: 'SWAP_A_T',  # swap aux and tgt
-            8: 'SWAP_T_S',  # swap tgt and src
+            # 8: 'SWAP_T_S',  # swap tgt and src
         }
         self.actions = {**self.move_actions, **self.swap_actions}
 
@@ -270,7 +270,7 @@ def visualize_transition(obs, action, next_obs, reward, done, info):
             5: 'MOVE_T_A',  # move disk from tgt to aux
             6: 'SWAP_S_A',  # swap src and aux
             7: 'SWAP_A_T',  # swap aux and tgt
-            8: 'SWAP_T_S',  # swap tgt and src
+            # 8: 'SWAP_T_S',  # swap tgt and src
         }
     print('Obs: {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
         obs, actions[action], next_obs, reward, done, info))
