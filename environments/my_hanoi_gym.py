@@ -183,10 +183,6 @@ class MyHanoiGym():
             roles = [state.init_roles.index(role) for role in state.roles]
             disk_representation = np.concatenate((disk_position_canonical, roles))
             reparameterized_state.append(disk_representation)
-            # print('disk {} relative'.format(disk), disk_position_relative)
-            # print('disk {} canonical'.format(disk), disk_position_canonical)
-            # print('disk {} roles'.format(disk), roles)
-            # print('disk {} disk_representation'.format(disk), disk_representation)
         return reparameterized_state
 
     def _pop(self, i):
