@@ -45,16 +45,16 @@ class MyHanoiGym():
         self.roles = []
         self.init_roles = []
 
+        self.state_dim = 6
+        self.action_dim = len(self.actions)
+        # self.max_steps = 10*2**n-1  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
+        self.max_steps = 3*(2**n-1)  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
+
     def seed(self, seed):
         pass  # will be used to randomize the source, auxiliary, target
 
     def render(self, mode):
-        state = self.get_state()
-
-        # create a mapping between rectangles and disk ids.
-
-        # create an array
-        pass
+        return self.text_render()
 
     def text_render(self):
         state = self.get_state()
@@ -106,6 +106,7 @@ class MyHanoiGym():
         pillar_strings = pillar_arrays_to_string(pillar_arrays)
 
         s = '\n'.join([
+            'Last Action: {}'.format(self.last_action),
             top_border,
             *pillar_strings,
             middle_border,
@@ -123,11 +124,13 @@ class MyHanoiGym():
         for i in range(self.n-1, -1, -1):
             self.pillars[src_pos].append(i)
 
+        self.last_action = None
         state = self.get_state()
         reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
         return reparameterized_state
 
     def step(self, action):
+        self.last_action = action
         if action in self.move_actions:
             start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
             end_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][1]])
@@ -135,26 +138,12 @@ class MyHanoiGym():
             if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
                 disk = self._pop(start_pillar_idx)
                 self._push(end_pillar_idx, disk)
-            #     state = self.get_state()
-            #     done = self.get_done()
-            #     reward = self.get_reward()
-            # else:
-            #     state = old_state
-            #     done = self.get_done()
-            #     reward = 0
         elif action in self.swap_actions:
             if self.n > 1:
                 if action == 6:
                     self._swap_s_a()
                 elif action == 7:
                     self._swap_a_t()
-                elif action == 8:
-                    self._swap_s_t()
-                # state = self.get_state()
-                # done = self.get_done()
-                # reward = self.get_reward()
-            else:
-                assert False
         else:
             assert False
 
@@ -251,7 +240,8 @@ class MyHanoiGym():
 
     def _is_solved(self):
         targ_pos = self.init_roles.index('target')
-        return self.pillars[targ_pos] == range(self.n)  # also should make sure that the roles are correct
+        # print(self.pillars[targ_pos], list(reversed(range(self.n))))
+        return self.pillars[targ_pos] == list(reversed(range(self.n)))  # also should make sure that the roles are correct
 
 """
 Testing
