@@ -37,9 +37,11 @@ class MyHanoiGym():
         self.swap_actions = {
             6: 'SWAP_S_A',  # swap src and aux
             7: 'SWAP_A_T',  # swap aux and tgt
-            # 8: 'SWAP_T_S',  # swap tgt and src
         }
-        self.actions = {**self.move_actions, **self.swap_actions}
+        self.actions = {
+            **self.move_actions, 
+            **self.swap_actions,
+            8: 'DONE'}
 
         self.pillars = ([], [], [])
         self.roles = []
@@ -125,27 +127,34 @@ class MyHanoiGym():
             self.pillars[src_pos].append(i)
 
         self.last_action = None
+        self.done = False
+
         state = self.get_state()
         reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
         return reparameterized_state
 
     def step(self, action):
         self.last_action = action
-        if action in self.move_actions:
-            start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
-            end_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][1]])
-            old_state = self.get_state()
-            if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
-                disk = self._pop(start_pillar_idx)
-                self._push(end_pillar_idx, disk)
-        elif action in self.swap_actions:
-            if self.n > 1:
-                if action == 6:
-                    self._swap_s_a()
-                elif action == 7:
-                    self._swap_a_t()
+
+        if self.actions[action] == 'DONE':
+            self.done = True
         else:
-            assert False
+            if action in self.move_actions:
+                start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
+                end_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][1]])
+                old_state = self.get_state()
+                if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
+                    disk = self._pop(start_pillar_idx)
+                    self._push(end_pillar_idx, disk)
+            elif action in self.swap_actions:
+                if self.n > 1:
+                    if action == 6:
+                        self._swap_s_a()
+                    elif action == 7:
+                        self._swap_a_t()
+            else:
+                assert False
+            self.done = False
 
         state = self.get_state()
         done = self.get_done()
@@ -165,11 +174,11 @@ class MyHanoiGym():
         return state
 
     def get_reward(self):
-        reward = self._is_solved()
+        reward = self._is_solved() and self.done
         return reward
 
     def get_done(self):
-        done = self._is_solved()
+        done = self._is_solved() and self.done
         return done
 
     def _reparameterize_state(self, state):
@@ -256,7 +265,7 @@ def visualize_transition(obs, action, next_obs, reward, done, info):
             5: 'MOVE_T_A',  # move disk from tgt to aux
             6: 'SWAP_S_A',  # swap src and aux
             7: 'SWAP_A_T',  # swap aux and tgt
-            # 8: 'SWAP_T_S',  # swap tgt and src
+            8: 'DONE',  # done
         }
     print('Obs: {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
         obs, actions[action], next_obs, reward, done, info))
@@ -293,24 +302,42 @@ def execute_transition(obs, action, env, obs_action_pairs):
 #     return obs, obs_action_pairs
 
 
+# def execute_n_policy(obs, n, env, obs_action_pairs):
+#     if n == 1:
+#         policy = [1]
+#     elif n == 2:
+#         policy = [0, 1, 2]
+#     else:
+#         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
+#         if n % 2 == 0:
+#             policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6]  # technically you are doubling up on the first 7 and the last 6 here
+#         else:
+#             policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6]
+#     for action in policy:
+#         if isinstance(action, int):
+#             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
+#         else:
+#             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
+#     return obs, obs_action_pairs
+
+
 def execute_n_policy(obs, n, env, obs_action_pairs):
     if n == 1:
-        policy = [1]
+        policy = [1, 8]
     elif n == 2:
-        policy = [0, 1, 2]
+        policy = [0, 1, 2, 8]
     else:
         n_minus_1_policy = lambda obs, env, obs_action_pairs: execute_n_policy(obs, n-1, env, obs_action_pairs)
         if n % 2 == 0:
-            policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6]  # technically you are doubling up on the first 7 and the last 6 here
+            policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6, 8]  # technically you are doubling up on the first 7 and the last 6 here
         else:
-            policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6]
+            policy = [7, n_minus_1_policy, 7, 1, 6, n_minus_1_policy, 6, 8]
     for action in policy:
         if isinstance(action, int):
             obs, obs_action_pairs = execute_transition(obs, action, env, obs_action_pairs)
         else:
             obs, obs_action_pairs = action(obs, env, obs_action_pairs)
     return obs, obs_action_pairs
-
 
 def test_hanoi_gym_n(max_n):
     for n in range(1, max_n+1):
