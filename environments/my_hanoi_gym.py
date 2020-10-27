@@ -1,6 +1,7 @@
 from collections import namedtuple
 import copy
 import numpy as np
+import random
 import pprint
 
 from environments.hanoi_env import HanoiEnv
@@ -38,19 +39,25 @@ class MyHanoiGym():
             6: 'SWAP_S_A',  # swap src and aux
             7: 'SWAP_A_T',  # swap aux and tgt
         }
+        self.done_action = 8
         self.actions = {
             **self.move_actions, 
             **self.swap_actions,
-            8: 'DONE'}
+            self.done_action: 'DONE'}
 
         self.pillars = ([], [], [])
         self.roles = []
         self.init_roles = []
 
-        self.state_dim = 6
+        # self.state_dim = 3#6  3 if canonical
+        self.state_dim = 6 # 3 if canonical
         self.action_dim = len(self.actions)
         # self.max_steps = 10*2**n-1  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
         self.max_steps = 3*(2**n-1)  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
+        # self.max_steps = 5*(2**n-1)  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
+        # self.max_steps = 10*(2**n-1)  # if n=8 then max_steps = 2560-1. If n=9 then max_steps = 5120-1
+
+
 
     def seed(self, seed):
         pass  # will be used to randomize the source, auxiliary, target
@@ -118,8 +125,10 @@ class MyHanoiGym():
 
     def reset(self):
         self.roles = ['source', 'auxiliary', 'target']
+        # random.shuffle(self.roles)
         self.init_roles = self.roles.copy()
         # can decide if we want to shuffle the roles or not
+
 
         src_pos = self.roles.index('source')
         self.pillars = ([], [], [])
@@ -127,17 +136,106 @@ class MyHanoiGym():
             self.pillars[src_pos].append(i)
 
         self.last_action = None
-        self.done = False
+        # self.done = False
 
         state = self.get_state()
         reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
         return reparameterized_state
 
+    # def step(self, action):
+    #     self.last_action = action
+
+    #     if self.actions[action] == 'DONE':
+    #         self.done = True
+    #     else:
+    #         if action in self.move_actions:
+    #             start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
+    #             end_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][1]])
+    #             old_state = self.get_state()
+    #             if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
+    #                 disk = self._pop(start_pillar_idx)
+    #                 self._push(end_pillar_idx, disk)
+    #         elif action in self.swap_actions:
+    #             if self.n > 1:
+    #                 if action == 6:
+    #                     self._swap_s_a()
+    #                 elif action == 7:
+    #                     self._swap_a_t()
+    #         else:
+    #             assert False
+    #         self.done = False
+
+    #     state = self.get_state()
+
+
+
+    #     # done = self.get_done()
+    #     # reward = self.get_reward()
+
+    #     # # reset self.done
+    #     # self.done = done
+
+    #     reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
+    #     info = dict()
+    #     return reparameterized_state, reward, done, info
+
+
+    # def step(self, action):
+    #     self.last_action = action
+    #     possibly_done = False
+
+    #     if self.actions[action] == 'DONE':
+    #         possibly_done = True
+    #     else:
+    #         if action in self.move_actions:
+    #             start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
+    #             end_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][1]])
+    #             old_state = self.get_state()
+    #             if self._is_move_possible(self.pillars[start_pillar_idx], self.pillars[end_pillar_idx]):
+    #                 disk = self._pop(start_pillar_idx)
+    #                 self._push(end_pillar_idx, disk)
+    #         elif action in self.swap_actions:
+    #             if self.n > 1:
+    #                 if action == 6:
+    #                     self._swap_s_a()
+    #                 elif action == 7:
+    #                     self._swap_a_t()
+    #         else:
+    #             assert False
+    #         possibly_done = False
+
+    #     state = self.get_state()
+    #     if self._is_solved() and possibly_done:
+    #         reward = 1
+    #         done = True
+    #     else:
+    #         reward = 0
+    #         done = False
+
+        
+    #     # done = self.get_done()
+    #     # reward = self.get_reward()
+
+    #     # # reset self.done
+    #     # self.done = done
+
+    #     reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
+    #     info = dict()
+    #     return reparameterized_state, reward, done, info
+
+
     def step(self, action):
         self.last_action = action
+        # possibly_done = False
 
         if self.actions[action] == 'DONE':
-            self.done = True
+            # possibly_done = True
+            if self._is_solved():
+                reward = 1
+                done = True
+            else:
+                reward = 0
+                done = False
         else:
             if action in self.move_actions:
                 start_pillar_idx = self.roles.index(self.pillar_map[self.actions[action][0]])
@@ -154,15 +252,29 @@ class MyHanoiGym():
                         self._swap_a_t()
             else:
                 assert False
-            self.done = False
+            reward = 0
+            done = False
 
         state = self.get_state()
-        done = self.get_done()
-        reward = self.get_reward()
+        # if self._is_solved() and possibly_done:
+        #     reward = 1
+        #     done = True
+        # else:
+        #     reward = 0
+        #     done = False
+
+        
+        # done = self.get_done()
+        # reward = self.get_reward()
+
+        # # reset self.done
+        # self.done = done
 
         reparameterized_state = np.stack(self._reparameterize_state(state), axis=0)
         info = dict()
         return reparameterized_state, reward, done, info
+
+
 
     def get_state(self):
         state = HanoiEnvState(
@@ -173,17 +285,33 @@ class MyHanoiGym():
             )
         return state
 
-    def get_reward(self):
-        reward = self._is_solved() and self.done
-        return reward
+    # def get_reward(self):
+    #     if self._is_solved() and self.done:
+    #         reward = 1
+    #     else:
+    #         reward = 0#-0.01
+    #     # reward = float(self._is_solved() and self.done)
+    #     return reward
 
-    def get_done(self):
-        done = self._is_solved() and self.done
-        return done
+    # def get_done(self):
+    #     done = self._is_solved() and self.done
+    #     return done
+
+    # def get_reward(self):
+    #     if self._is_solved():# and self.done:
+    #         reward = 1
+    #     else:
+    #         reward = 0#-0.01
+    #     # reward = float(self._is_solved() and self.done)
+    #     return reward
+
+    # def get_done(self):
+    #     done = self._is_solved()# and self.done
+    #     return done
 
     def _reparameterize_state(self, state):
         assert isinstance(state, HanoiEnvState)
-        assert state.init_roles == ['source', 'auxiliary', 'target']
+        # assert state.init_roles == ['source', 'auxiliary', 'target']
 
         reparameterized_state = []  # must be ordered!
         for disk in range(state.n):
@@ -191,6 +319,7 @@ class MyHanoiGym():
             disk_position_canonical = [disk_position_relative[state.roles.index(role)] for role in state.init_roles]
             roles = [state.init_roles.index(role) for role in state.roles]
             disk_representation = np.concatenate((disk_position_canonical, roles))
+            # disk_representation = disk_position_canonical
             reparameterized_state.append(disk_representation)
         return reparameterized_state
 
