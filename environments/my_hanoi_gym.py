@@ -38,6 +38,7 @@ class MyHanoiGym():
         self.swap_actions = {
             6: 'SWAP_S_A',  # swap src and aux
             7: 'SWAP_A_T',  # swap aux and tgt
+            # maybe you should have a third action just in case?
         }
         self.done_action = 8
         self.actions = {
@@ -309,6 +310,21 @@ class MyHanoiGym():
     #     done = self._is_solved()# and self.done
     #     return done
 
+    # def _reparameterize_state(self, state):
+    #     assert isinstance(state, HanoiEnvState)
+    #     # assert state.init_roles == ['source', 'auxiliary', 'target']
+
+    #     reparameterized_state = []  # must be ordered!
+    #     for disk in range(state.n):
+    #         disk_position_relative = [disk in pillar for pillar in state.pillars]
+    #         disk_position_canonical = [disk_position_relative[state.roles.index(role)] for role in state.init_roles]
+    #         roles = [state.init_roles.index(role) for role in state.roles]
+    #         disk_representation = np.concatenate((disk_position_canonical, roles))
+    #         # disk_representation = disk_position_canonical
+    #         reparameterized_state.append(disk_representation)
+    #     return reparameterized_state
+
+
     def _reparameterize_state(self, state):
         assert isinstance(state, HanoiEnvState)
         # assert state.init_roles == ['source', 'auxiliary', 'target']
@@ -316,7 +332,7 @@ class MyHanoiGym():
         reparameterized_state = []  # must be ordered!
         for disk in range(state.n):
             disk_position_relative = [disk in pillar for pillar in state.pillars]
-            disk_position_canonical = [disk_position_relative[state.roles.index(role)] for role in state.init_roles]
+            disk_position_canonical = [disk_position_relative[state.init_roles.index(role)] for role in state.init_roles]
             roles = [state.init_roles.index(role) for role in state.roles]
             disk_representation = np.concatenate((disk_position_canonical, roles))
             # disk_representation = disk_position_canonical
@@ -396,7 +412,7 @@ def visualize_transition(obs, action, next_obs, reward, done, info):
             7: 'SWAP_A_T',  # swap aux and tgt
             8: 'DONE',  # done
         }
-    print('Obs: {} Action: {} Next Obs: {} Reward: {} Done: {} Info: {}'.format(
+    print('Obs:\n{}\nAction: {}\nNext Obs:\n{}\nReward: {}\nDone: {}\nInfo: {}'.format(
         obs, actions[action], next_obs, reward, done, info))
 
 def execute_transition(obs, action, env, obs_action_pairs):
@@ -474,11 +490,11 @@ def test_hanoi_gym_n(max_n):
         obs_action_pairs = dict()
         env = MyHanoiGym(n=n)
         obs = env.reset()
-        print('Obs: {}'.format(obs))
+        print('Obs:\n{}'.format(obs))
         print('State: {}\n{}'.format(env.get_state(), env.text_render()))
         obs, obs_action_pairs = execute_n_policy(obs, n, env, obs_action_pairs)
-        print('obs_action_pairs')
-        pprint.pprint(obs_action_pairs)
+        # print('obs_action_pairs')
+        # pprint.pprint(obs_action_pairs)
 
 
 
